@@ -1,6 +1,8 @@
 # GRIL-Calib
 Official implementation of our paper **"GRIL-Calib: Targetless Ground Robot IMU-LiDAR Extrinsic Calibration Method using Ground Plane Motion Constraints"**.  
 
+- ArXiv : [https://arxiv.org/abs/2312.14035](https://arxiv.org/abs/2312.14035)  
+
 ## About GRIL-Calib
 <p align="center"><img src="./figs/GRIL-Calib-overview.png" width = "500" ></p>  
 
