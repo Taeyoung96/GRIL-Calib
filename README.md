@@ -24,10 +24,10 @@ Official implementation of our paper **"GRIL-Calib: Targetless Ground Robot IMU-
 
 **1. Enter the `/docker` folder and make a docker image.**
 ```
-git clone https://github.com/Taeyoung96/GRIL-Calib-final.git
+git clone https://github.com/Taeyoung96/GRIL-Calib.git
 ```
 ```
-cd GRIL-Calib-final/docker
+cd GRIL-Calib/docker
 ```
 ```
 docker build -t gril-calib .
