@@ -114,7 +114,7 @@ Similar to [LI-Init](https://github.com/hku-mars/LiDAR_IMU_Init), edit `config/x
 - `z_accumulate`: Parameter that determines how much the z-axis rotates (Assuming the z-axis is up)
 - `gyro_factor`, `acc_factor`, `ground_factor`: Weight for each residual
 - `set_boundary`: When performing nonlinear optimization, set the bound based on the initial value. (only translation vector)
-- `bound_th`: Set the threshold for the bound. (meter)
+- `bound_th`: Set the threshold for the bound. (meter) ⭐️  See the [ceres-solver documentation](http://ceres-solver.org/nnls_modeling.html#_CPPv4N5ceres7Problem22SetParameterUpperBoundEPdid) for more information.
 
 ## Acknowledgments  
 
