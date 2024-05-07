@@ -128,13 +128,14 @@ If you find our paper useful in your research, please cite us using the followin
 @ARTICLE{10506583,
   author={Kim, TaeYoung and Pak, Gyuhyeon and Kim, Euntai},
   journal={IEEE Robotics and Automation Letters}, 
-  title={GRIL-Calib: Targetless Ground Robot IMU-LiDAR Extrinsic Calibration Method using Ground Plane Motion Constraints}, 
+  title={GRIL-Calib: Targetless Ground Robot IMU-LiDAR Extrinsic Calibration Method Using Ground Plane Motion Constraints}, 
   year={2024},
-  volume={},
-  number={},
-  pages={1-8},
-  keywords={Calibration;Laser radar;Robot sensing systems;Robots;Optimization;Odometry;Vectors;Sensor Fusion;Calibration and Identification},
+  volume={9},
+  number={6},
+  pages={5409-5416},
+  keywords={Calibration;Laser radar;Robot sensing systems;Robots;Optimization;Odometry;Vectors;Calibration and identification;sensor fusion},
   doi={10.1109/LRA.2024.3392081}}
+
 ```
 
 
