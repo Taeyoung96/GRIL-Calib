@@ -1,4 +1,4 @@
-# GRIL-Calib
+# GRIL-Calib [ROS1 / ROS2]
 Official implementation of our paper **"GRIL-Calib: Targetless Ground Robot IMU-LiDAR Extrinsic Calibration Method using Ground Plane Motion Constraints"**.  
 
 - ArXiv : [https://arxiv.org/abs/2312.14035](https://arxiv.org/abs/2312.14035)  
@@ -10,7 +10,11 @@ Official implementation of our paper **"GRIL-Calib: Targetless Ground Robot IMU-
 - **GRIL-Calib** is the LiDAR-IMU calibration method for ground robots.
 - Using only **planar motion**, the 6-DOF calibration parameter could be estimated.
 
-## Prerequisites
+## 🚀 ROS2 Support  
+
+If you want to use ROS2 version, check out `humble` branch.  
+
+## Prerequisites (ROS1 version)
 - Ubuntu 18.04
 - ROS Melodic
 - PCL >= 1.8
