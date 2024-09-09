@@ -24,10 +24,7 @@ Official implementation of our paper **"GRIL-Calib: Targetless Ground Robot IMU-
 
 **1. Enter the `/docker` folder and make a docker image.**
 ```
-git clone https://github.com/Taeyoung96/GRIL-Calib.git
-```
-```
-git checkout humble
+git clone -b humble https://github.com/Taeyoung96/GRIL-Calib.git
 ```
 ```
 cd GRIL-Calib/docker
@@ -39,7 +36,7 @@ docker build -t gril-calib-ros2 .
 When you have finished it, use the command `docker images` and you can see the output below.
 ```
 REPOSITORY                   TAG                   IMAGE ID         CREATED          SIZE
-gril-calib-ros2                   latest                9f90339349a0     5 months ago     4.98GB
+gril-calib-ros2              latest                9f90339349a0     5 months ago     4.98GB
 ```
 
 **2. Make docker container (same path as above)**
