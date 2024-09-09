@@ -10,9 +10,9 @@ Official implementation of our paper **"GRIL-Calib: Targetless Ground Robot IMU-
 - **GRIL-Calib** is the LiDAR-IMU calibration method for ground robots.
 - Using only **planar motion**, the 6-DOF calibration parameter could be estimated.
 
-## Prerequisites
-- Ubuntu 18.04
-- ROS Melodic
+## Prerequisites (ROS2 version)
+- Ubuntu 22.04
+- ROS Humble
 - PCL >= 1.8
 - Eigen >= 3.3.4
 - [livox_ros_driver](https://github.com/Livox-SDK/livox_ros_driver)
@@ -27,16 +27,19 @@ Official implementation of our paper **"GRIL-Calib: Targetless Ground Robot IMU-
 git clone https://github.com/Taeyoung96/GRIL-Calib.git
 ```
 ```
+git checkout humble
+```
+```
 cd GRIL-Calib/docker
 ```
 ```
-docker build -t gril-calib .
+docker build -t gril-calib-ros2 .
 ```
 
 When you have finished it, use the command `docker images` and you can see the output below.
 ```
 REPOSITORY                   TAG                   IMAGE ID         CREATED          SIZE
-gril-calib                   latest                9f90339349a0     5 months ago     3.78GB
+gril-calib-ros2                   latest                9f90339349a0     5 months ago     4.98GB
 ```
 
 **2. Make docker container (same path as above)**
@@ -51,12 +54,12 @@ sudo chmod -R 777 container_run.sh
 **:warning: You should change {container_name}, {docker image} to suit your environment.**  
 
 ```
-./container_run.sh gril-calib-container gril-calib:latest 
+./container_run.sh gril-calib-container gril-calib-ros2:latest 
 ```
 
 If you have successfully created the docker container, the terminal output will be similar to the below.
 ```
-================Gril-Calib Docker Env Ready================
+================GRIL-Calib ROS2 Docker Env Ready================
 root@taeyoung-cilab:/root/catkin_ws#
 ```
 
@@ -64,28 +67,31 @@ root@taeyoung-cilab:/root/catkin_ws#
 
 Inside the docker container, build and run the package.  
 ```
-catkin_make
+cd /root/ros2_livox_ws/src/livox_ros_driver2/
 ```
 ```
-source devel/setup.bash
+./build.sh humble
+```
+```
+source /root/ros2_livox_ws/install/setup.bash 
+```
+```
+cd /root/ros2_ws/
+```
+```
+colcon build --symlink-install
+```
+```
+source install/setup.bash
 ```
 
 ## Run with a public dataset  
 
-The launch files for [M2DGR](https://ieeexplore.ieee.org/abstract/document/9664374), [HILTI](https://arxiv.org/abs/2109.11316), and [S3E](https://arxiv.org/abs/2210.13723), as experimented with in the paper, are shown below.
+The launch file for `velodyne` LiDAR is shown below.
 
-- For M2DGR,
+- For Velodyne,
 ```
-roslaunch gril_calib m2dgr_xxxx.launch
-```
-
-- For HILTI,
-```
-roslaunch gril_calib hilti_xxxx.launch
-```
-- For S3E,
-```
-roslaunch gril_calib s3e_xxxx.launch
+ros2 launch gril_calib mapping_velodyne.launch.py
 ```
 
 After running the launch file, you simply run the bag file for each sequence.  

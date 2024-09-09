@@ -5,7 +5,6 @@
 #include <Eigen/Core>
 
 #define SKEW_SYM_MATRX(v) 0.0,-v[2],v[1],v[2],0.0,-v[0],-v[1],v[0],0.0
-#define SKEW_2D(w) 0.0, -w, w, 0.0
 
 template<typename T>
 Eigen::Matrix<T, 3, 3> skew_sym_mat(const Eigen::Matrix<T, 3, 1> &v)
@@ -129,19 +128,5 @@ Eigen::Matrix<T, 3, 1> RotMtoEuler(const Eigen::Matrix<T, 3, 3> &rot)
     Eigen::Matrix<T, 3, 1> ang(x, y, z);
     return ang;
 }
-
-// convert euler angle to Rotation Matrix 
-// unit - radian
-template<typename T>
-Eigen::Matrix<T, 3, 3> EulerToRotM(const Eigen::Matrix<T, 3, 1> &ang)
-{
-    Eigen::Matrix<T, 3, 3> R_x, R_y, R_z;
-    R_x << 1, 0, 0, 0, cos(ang[0]), -sin(ang[0]), 0, sin(ang[0]), cos(ang[0]);
-    R_y << cos(ang[1]), 0, sin(ang[1]), 0, 1, 0, -sin(ang[1]), 0, cos(ang[1]);
-    R_z << cos(ang[2]), -sin(ang[2]), 0, sin(ang[2]), cos(ang[2]), 0, 0, 0, 1;
-    return R_z * R_y * R_x;
-}
-
-
 
 #endif

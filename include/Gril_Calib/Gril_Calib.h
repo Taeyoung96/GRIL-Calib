@@ -14,7 +14,7 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
-#include <eigen_conversions/eigen_msg.h>
+// #include <eigen_conversions/eigen_msg.h>
 
 #include <ceres/ceres.h>
 #include <ceres/rotation.h>
@@ -106,6 +106,7 @@ struct CalibState {
     };
 };
 
+
 struct Angular_Vel_Cost_only_Rot {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -175,6 +176,52 @@ struct Angular_Vel_IL_Cost {
     V3D Lidar_ang_vel;
     double deltaT_LI;
 };
+
+struct Angular_Vel_Cost {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    Angular_Vel_Cost(V3D IMU_ang_vel_, V3D IMU_ang_acc_, V3D Lidar_ang_vel_, double deltaT_LI_) :
+            IMU_ang_vel(IMU_ang_vel_), IMU_ang_acc(IMU_ang_acc_), Lidar_ang_vel(Lidar_ang_vel_),
+            deltaT_LI(deltaT_LI_) {}
+
+    template<typename T>
+    bool operator()(const T *q, const T *b_g, const T *t, T *residual) const {
+        //Known parameters used for Residual Construction
+        Eigen::Matrix<T, 3, 1> IMU_ang_vel_T = IMU_ang_vel.cast<T>();
+        Eigen::Matrix<T, 3, 1> IMU_ang_acc_T = IMU_ang_acc.cast<T>();
+        Eigen::Matrix<T, 3, 1> Lidar_ang_vel_T = Lidar_ang_vel.cast<T>();
+        T deltaT_LI_T{deltaT_LI};
+
+        //Unknown Parameters, needed to be estimated
+        Eigen::Quaternion<T> q_LI{q[0], q[1], q[2], q[3]};
+        Eigen::Matrix<T, 3, 3> R_LI = q_LI.toRotationMatrix();  //Rotation
+        Eigen::Matrix<T, 3, 1> bias_g{b_g[0], b_g[1], b_g[2]};  //Bias of gyroscope
+        T td{t[0]};                                             //Time lag (IMU wtr Lidar)
+
+        // Residual
+        Eigen::Matrix<T, 3, 1> resi =
+                R_LI * Lidar_ang_vel_T - IMU_ang_vel_T - (deltaT_LI_T + td) * IMU_ang_acc_T + bias_g;
+        
+        residual[0] = resi[0];
+        residual[1] = resi[1];
+        residual[2] = resi[2];
+        return true;
+    }
+
+    static ceres::CostFunction *
+    Create(const V3D IMU_ang_vel_, const V3D IMU_ang_acc_, const V3D Lidar_ang_vel_, const double deltaT_LI_) {
+        // 3 residual, 4 parameter (q), 3 parameter (bias), 1 parameter (time lag)
+        return (new ceres::AutoDiffCostFunction<Angular_Vel_Cost, 3, 4, 3, 1>(
+                new Angular_Vel_Cost(IMU_ang_vel_, IMU_ang_acc_, Lidar_ang_vel_, deltaT_LI_)));
+    }
+
+    V3D IMU_ang_vel;
+    V3D IMU_ang_acc;
+    V3D Lidar_ang_vel;
+    double deltaT_LI;
+};
+
+
 
 struct Ground_Plane_Cost_IL {
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -264,6 +311,7 @@ struct Linear_acc_Rot_Cost_without_Gravity {
         M3D Jacob_trans = Lidar_omg_SKEW * Lidar_omg_SKEW + Lidar_angacc_SKEW;
         Eigen::Matrix<T, 3, 3> Jacob_trans_T = Jacob_trans.cast<T>();
         
+        // 이 부분에서 R_LL0_T * Jacob_trans_T * T_IL;의 부호가 반대로 되야 값이 잘 나온다. 이유 분석을 해야함
         Eigen::Matrix<T, 3, 1> resi = R_LL0_T * R_IL * IMU_linear_acc_T - R_LL0_T * bias_aL
                                       + R_GL * STD_GRAV - Lidar_linear_acc_T - R_LL0_T * Jacob_trans_T * T_IL;
 
@@ -312,7 +360,7 @@ public:
 
     // original
     struct Butterworth {
-        // Coefficients of 6 order butterworth low pass filter, omega = 0.15 
+        // Coefficients of 6 order butterworth low pass filter, omega = 0.15 -성공
         double Coeff_b[7] = {0.0001,0.0005,0.0011,0.0015,0.0011,0.0005,0.0001};
         double Coeff_a[7] = {1,-4.1824,7.4916,-7.3136,4.0893,-1.2385,0.1584};
 
@@ -322,7 +370,7 @@ public:
 
     void plot_result();
 
-    void push_ALL_IMU_CalibState(const sensor_msgs::Imu::ConstPtr &msg, const double &mean_acc_norm);
+    void push_ALL_IMU_CalibState(const sensor_msgs::msg::Imu::SharedPtr &msg, const double &mean_acc_norm);
 
     void push_IMU_CalibState(const V3D &omg, const V3D &acc, const double &timestamp);
 

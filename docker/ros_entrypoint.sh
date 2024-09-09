@@ -3,14 +3,10 @@
 set -e
 
 # Ros build
-source "/opt/ros/melodic/setup.bash"
-source "/root/livox_ws/devel/setup.bash"
+source "/opt/ros/humble/setup.bash"
 
+echo "==============GRIL-Calib ROS2 Docker Env Ready================"
 
-# Libray install if you want
-
-echo "================Gril-Calib Docker Env Ready================"
-
-cd /root/catkin_ws
+cd /root/ros2_ws
 
 exec "$@"

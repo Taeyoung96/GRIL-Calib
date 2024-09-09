@@ -1,16 +1,16 @@
 #ifndef COMMON_LIB_H
 #define COMMON_LIB_H
 
+#include <deque>
 #include <so3_math.h>
 #include <Eigen/Eigen>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
-#include <gril_calib/States.h>
-#include <gril_calib/Pose6D.h>
-#include <sensor_msgs/Imu.h>
-#include <nav_msgs/Odometry.h>
-#include <tf/transform_broadcaster.h>
-#include <eigen_conversions/eigen_msg.h>
+#include <gril_calib/msg/pose6_d.hpp>
+#include <sensor_msgs/msg/imu.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+
 #include <color.h>
 #include <scope_timer.hpp>
 
@@ -39,7 +39,7 @@ using namespace Eigen;
 #define DEBUG_FILE_DIR(name)     (string(string(ROOT_DIR) + "Log/"+ name))
 #define RESULT_FILE_DIR(name)    (string(string(ROOT_DIR) + "result/"+ name))
 
-typedef gril_calib::Pose6D     Pose6D;
+typedef gril_calib::msg::Pose6D     Pose6D;
 typedef pcl::PointXYZINormal PointType;
 typedef pcl::PointXYZRGB     PointTypeRGB;
 typedef pcl::PointCloud<PointType>    PointCloudXYZI;
@@ -57,9 +57,6 @@ typedef Matrix2d M2D;
 const M3D Eye3d(M3D::Identity());
 const V3D Zero3d(0, 0, 0);
 
-// Vector3d Lidar_offset_to_IMU(0.05512, 0.02226, -0.0297); // Horizon
-// Vector3d Lidar_offset_to_IMU(0.04165, 0.02326, -0.0284); // Avia
-
 enum LID_TYPE{AVIA = 1, VELO, OUSTER, L515, PANDAR, VELO_NCLT, VELO_without_Time}; //{1, 2, 3}
 struct MeasureGroup     // Lidar data and imu dates for the curent process
 {
@@ -70,7 +67,7 @@ struct MeasureGroup     // Lidar data and imu dates for the curent process
     };
     double lidar_beg_time;
     PointCloudXYZI::Ptr lidar;
-    deque<sensor_msgs::Imu::ConstPtr> imu;
+    deque<sensor_msgs::msg::Imu::ConstSharedPtr> imu;
 };
 
 struct StatesGroup
@@ -201,28 +198,6 @@ template<typename T>
 T g2SI(T g)
 {
   return g * G_m_s2;
-}
-
-// So(2) rotation matrix
-// theta - radian
-template<typename T>
-M2D SO2(T theta)
-{
-    M2D R;
-    R << std::cos(theta), -std::sin(theta),
-         std::sin(theta),  std::cos(theta);
-    return R;
-}
-
-// Skew matrix 2D
-// theta - radian
-template<typename T>
-M2D Skew2D(T theta)
-{
-    M2D exp;
-    exp << 0,   -theta,
-          theta,    0;
-    return exp;
 }
 
 
@@ -356,6 +331,19 @@ bool esti_plane(Matrix<T, 4, 1> &pca_result, const PointVector &point, const T &
     }
 
     return true;
+}
+
+inline double get_time_sec(const builtin_interfaces::msg::Time &time)
+{
+    return rclcpp::Time(time).seconds();
+}
+
+inline rclcpp::Time get_ros_time(double timestamp)
+{
+    int32_t sec = std::floor(timestamp);
+    auto nanosec_d = (timestamp - std::floor(timestamp)) * 1e9;
+    uint32_t nanosec = nanosec_d;
+    return rclcpp::Time(sec, nanosec);
 }
 
 #endif

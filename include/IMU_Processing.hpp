@@ -8,7 +8,16 @@
 #include <thread>
 #include <fstream>
 #include <csignal>
-#include <ros/ros.h>
+
+#include <rclcpp/rclcpp.hpp>
+#include <nav_msgs/msg/odometry.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+
+#include <sensor_msgs/msg/imu.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <geometry_msgs/msg/vector3.hpp>
+
+
 #include <so3_math.h>
 #include <Eigen/Eigen>
 #include <common_lib.h>
@@ -16,16 +25,12 @@
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <condition_variable>
-#include <nav_msgs/Odometry.h>
+
+
 #include <pcl/common/transforms.h>
 #include <pcl/kdtree/kdtree_flann.h>
-#include <tf/transform_broadcaster.h>
-#include <eigen_conversions/eigen_msg.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <sensor_msgs/Imu.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <gril_calib/States.h>
-#include <geometry_msgs/Vector3.h>
+
 
 /// *************Preconfiguration
 
@@ -43,7 +48,7 @@ class ImuProcess
   ~ImuProcess();
   
   void Reset();
-  void Reset(double start_timestamp, const sensor_msgs::ImuConstPtr &lastimu);
+  void Reset(double start_timestamp, const sensor_msgs::msg::Imu::UniquePtr &lastimu);
   void set_R_LI_cov(const V3D &R_LI_cov);
   void set_T_LI_cov(const V3D &T_LI_cov);
   void set_gyr_cov(const V3D &scaler);
@@ -75,8 +80,8 @@ class ImuProcess
   void propagation_and_undist(const MeasureGroup &meas, StatesGroup &state_inout, PointCloudXYZI &pcl_in_out);
   void Forward_propagation_without_imu(const MeasureGroup &meas, StatesGroup &state_inout, PointCloudXYZI &pcl_out);
   PointCloudXYZI::Ptr cur_pcl_un_;
-  sensor_msgs::ImuConstPtr last_imu_;
-  deque<sensor_msgs::ImuConstPtr> v_imu_;
+  sensor_msgs::msg::Imu::ConstSharedPtr last_imu_;
+  deque<sensor_msgs::msg::Imu::ConstSharedPtr> v_imu_;
   vector<Pose6D> IMUpose;
   V3D mean_acc;
   V3D mean_gyr;
@@ -103,7 +108,7 @@ ImuProcess::ImuProcess()
   mean_acc        = V3D(0, 0, -1.0);
   mean_gyr        = V3D(0, 0, 0);
   angvel_last     = Zero3d;
-  last_imu_.reset(new sensor_msgs::Imu());
+  last_imu_.reset(new sensor_msgs::msg::Imu());
   fout_imu.open(DEBUG_FILE_DIR("imu.txt"),ios::out);
 }
 
@@ -111,7 +116,8 @@ ImuProcess::~ImuProcess() {}
 
 void ImuProcess::Reset() 
 {
-  ROS_WARN("Reset ImuProcess");
+  // ROS_WARN("Reset ImuProcess");
+  std::cout << "Reset ImuProcess" << std::endl;
   mean_acc      = V3D(0, 0, -1.0);
   mean_gyr      = V3D(0, 0, 0);
   angvel_last       = Zero3d;
@@ -119,7 +125,7 @@ void ImuProcess::Reset()
   init_iter_num     = 1;
   v_imu_.clear();
   IMUpose.clear();
-  last_imu_.reset(new sensor_msgs::Imu());
+  last_imu_.reset(new sensor_msgs::msg::Imu());
   cur_pcl_un_.reset(new PointCloudXYZI());
 }
 
@@ -162,7 +168,8 @@ void ImuProcess::IMU_init(const MeasureGroup &meas, StatesGroup &state_inout, in
 {
   /** 1. initializing the gravity, gyro bias, acc and gyro covariance
    ** 2. normalize the acceleration measurements to unit gravity **/
-  ROS_INFO("IMU Initializing: %.1f %%", double(N) / MAX_INI_COUNT * 100);
+  // ROS_INFO("IMU Initializing: %.1f %%", double(N) / MAX_INI_COUNT * 100);
+  std::cerr << "IMU Initializing: " << double(N) / MAX_INI_COUNT * 100 << " %" << std::endl;
   V3D cur_acc, cur_gyr;
   
   if (b_first_frame_)
@@ -197,6 +204,7 @@ void ImuProcess::IMU_init(const MeasureGroup &meas, StatesGroup &state_inout, in
   state_inout.rot_end = Eye3d;
   state_inout.bias_g.setZero();
   last_imu_ = meas.imu.back();
+
 }
 
 
@@ -272,7 +280,7 @@ void ImuProcess::propagation_and_undist(const MeasureGroup &meas, StatesGroup &s
   pcl_out = *(meas.lidar);
   auto v_imu = meas.imu;
   v_imu.push_front(last_imu_);
-  double imu_end_time = v_imu.back()->header.stamp.toSec();
+  double imu_end_time = get_time_sec(v_imu.back()->header.stamp);
   double pcl_beg_time, pcl_end_time;
 
   if (lidar_type == L515)
@@ -304,7 +312,7 @@ void ImuProcess::propagation_and_undist(const MeasureGroup &meas, StatesGroup &s
     auto &&head = *(it_imu);
     auto &&tail = *(it_imu + 1);
 
-    if (tail->header.stamp.toSec() < last_lidar_end_time_)    continue;
+    if (get_time_sec(tail->header.stamp) < last_lidar_end_time_)    continue;
     
     angvel_avr<<0.5 * (head->angular_velocity.x + tail->angular_velocity.x),
                 0.5 * (head->angular_velocity.y + tail->angular_velocity.y),
@@ -317,15 +325,15 @@ void ImuProcess::propagation_and_undist(const MeasureGroup &meas, StatesGroup &s
 
       V3D angvel_now(head->angular_velocity.x, head->angular_velocity.y, head->angular_velocity.z);
       V3D acc_now(head->linear_acceleration.x, head->linear_acceleration.y, head->linear_acceleration.z);
-      fout_imu << setw(10) << head->header.stamp.toSec() << "  " << angvel_now.transpose()<< " " << acc_now.transpose() << endl;
+      fout_imu << setw(10) << get_time_sec(head->header.stamp) << "  " << angvel_now.transpose()<< " " << acc_now.transpose() << endl;
 
     angvel_avr -= state_inout.bias_g;
     acc_avr     = acc_avr / IMU_mean_acc_norm * G_m_s2 - state_inout.bias_a;
 
-    if(head->header.stamp.toSec() < last_lidar_end_time_)
-        dt = tail->header.stamp.toSec() - last_lidar_end_time_;
+    if(get_time_sec(head->header.stamp) < last_lidar_end_time_)
+        dt = get_time_sec(tail->header.stamp) - last_lidar_end_time_;
     else
-        dt = tail->header.stamp.toSec() - head->header.stamp.toSec();
+        dt = get_time_sec(tail->header.stamp) - get_time_sec(head->header.stamp);
     
     /* covariance propagation */
     M3D acc_avr_skew;
@@ -343,7 +351,7 @@ void ImuProcess::propagation_and_undist(const MeasureGroup &meas, StatesGroup &s
     F_x.block<3,3>(12,21) = Eye3d * dt;
 
     cov_w.block<3,3>(0,0).diagonal()   = cov_gyr * dt * dt;
-    cov_w.block<3,3>(6,6).diagonal()   = cov_R_LI * dt * dt;    
+    cov_w.block<3,3>(6,6).diagonal()   = cov_R_LI * dt * dt;    // config file에서 정해준다.
     cov_w.block<3,3>(9,9).diagonal()   = cov_T_LI * dt * dt;
     cov_w.block<3,3>(12,12)            = R_imu * cov_acc.asDiagonal() * R_imu.transpose() * dt * dt;
     cov_w.block<3,3>(15,15).diagonal() = cov_bias_gyr * dt * dt; // bias gyro covariance
@@ -366,7 +374,7 @@ void ImuProcess::propagation_and_undist(const MeasureGroup &meas, StatesGroup &s
     /* save the poses at each IMU measurements (global frame)*/
     angvel_last = angvel_avr;
     acc_s_last  = acc_imu;
-    double &&offs_t = tail->header.stamp.toSec() - pcl_beg_time;
+    double &&offs_t = get_time_sec(tail->header.stamp) - pcl_beg_time;
     IMUpose.push_back(set_pose6d(offs_t, acc_imu, angvel_avr, vel_imu, pos_imu, R_imu));
   }
 
@@ -379,6 +387,7 @@ void ImuProcess::propagation_and_undist(const MeasureGroup &meas, StatesGroup &s
 
 
   last_imu_ = meas.imu.back();
+
   last_lidar_end_time_ = pcl_end_time;
 
   if (lidar_type != L515)
@@ -436,7 +445,8 @@ void ImuProcess::Process(const MeasureGroup &meas, StatesGroup &stat, PointCloud
   if (imu_en)
   {
     if(meas.imu.empty())  return;
-    ROS_ASSERT(meas.lidar != nullptr);
+    // ROS_ASSERT(meas.lidar != nullptr);
+    assert(meas.lidar != nullptr);
 
     if (imu_need_init_)
     {
@@ -453,7 +463,8 @@ void ImuProcess::Process(const MeasureGroup &meas, StatesGroup &stat, PointCloud
                 cov_acc = cov_acc_scale;
                 cov_gyr = cov_gyr_scale;
 
-                ROS_INFO("IMU Initialization Done: Gravity: %.4f %.4f %.4f, Acc norm: %.4f", stat.gravity[0], stat.gravity[1], stat.gravity[2], mean_acc.norm());
+                // ROS_INFO("IMU Initialization Done: Gravity: %.4f %.4f %.4f, Acc norm: %.4f", stat.gravity[0], stat.gravity[1], stat.gravity[2], mean_acc.norm());
+                std::cerr << "IMU Initialization Done: Gravity: " << stat.gravity[0] << " " << stat.gravity[1] << " " << stat.gravity[2] << ", Acc norm: " << mean_acc.norm() << std::endl;
                 IMU_mean_acc_norm = mean_acc.norm();
             }
         }
@@ -461,6 +472,7 @@ void ImuProcess::Process(const MeasureGroup &meas, StatesGroup &stat, PointCloud
             cout << endl;
             printf(BOLDMAGENTA "[Refinement] Switch to LIO mode, online refinement begins.\n\n" RESET);
             last_imu_   = meas.imu.back();
+        
             imu_need_init_ = false;
             cov_acc = cov_acc_scale;
             cov_gyr = cov_gyr_scale;

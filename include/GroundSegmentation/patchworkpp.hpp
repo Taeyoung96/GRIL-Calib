@@ -11,9 +11,10 @@
 #ifndef PATCHWORKPP_H
 #define PATCHWORKPP_H
 
-#include <sensor_msgs/PointCloud2.h>
-#include <ros/ros.h>
-#include <jsk_recognition_msgs/PolygonArray.h>
+#include <rclcpp/rclcpp.hpp>
+
+#include <sensor_msgs/msg/point_cloud2.hpp>
+
 #include <Eigen/Dense>
 #include <boost/format.hpp>
 #include <numeric>
@@ -70,59 +71,95 @@ struct RevertCandidate
 };
 
 template <typename PointT>
-class PatchWorkpp {
+class PatchWorkpp : public rclcpp::Node {
 
 public:
     typedef std::vector<pcl::PointCloud<PointT>> Ring;
     typedef std::vector<Ring> Zone;
 
-    PatchWorkpp() {};
+    // PatchWorkpp() {};
 
-    PatchWorkpp(ros::NodeHandle *nh) : node_handle_(*nh) {
-        // Init ROS related
-        ROS_INFO("Inititalizing PatchWork++...");
+    PatchWorkpp() : Node("patchworkpp"){
+        // Init ROS2 related
+        // ROS_INFO("Inititalizing PatchWork++...");
+        RCLCPP_INFO(this->get_logger(), "Inititalizing PatchWork++...");
 
-        node_handle_.param("/patchworkpp/verbose", verbose_, false);
+        // node_handle_.param("/patchworkpp/verbose", verbose_, false);
+        this->declare_parameter<bool>("patchworkpp.verbose", false);
+        this->get_parameter_or("patchworkpp.verbose", verbose_, false);
 
-        node_handle_.param("/patchworkpp/sensor_height", sensor_height_, 1.723);
-        node_handle_.param("/patchworkpp/num_iter", num_iter_, 3);
-        node_handle_.param("/patchworkpp/num_lpr", num_lpr_, 20);
-        node_handle_.param("/patchworkpp/num_min_pts", num_min_pts_, 10); 
-        node_handle_.param("/patchworkpp/th_seeds", th_seeds_, 0.4);
-        node_handle_.param("/patchworkpp/th_dist", th_dist_, 0.3);
-        node_handle_.param("/patchworkpp/th_seeds_v", th_seeds_v_, 0.4);
-        node_handle_.param("/patchworkpp/th_dist_v", th_dist_v_, 0.3);
-        node_handle_.param("/patchworkpp/max_r", max_range_, 80.0);
-        node_handle_.param("/patchworkpp/min_r", min_range_, 2.7);
-        node_handle_.param("/patchworkpp/uprightness_thr", uprightness_thr_, 0.5);
-        node_handle_.param("/patchworkpp/adaptive_seed_selection_margin", adaptive_seed_selection_margin_, -1.1);
-        node_handle_.param("/patchworkpp/RNR_ver_angle_thr", RNR_ver_angle_thr_, -15.0);
-        node_handle_.param("/patchworkpp/RNR_intensity_thr", RNR_intensity_thr_, 0.2);
-        node_handle_.param("/patchworkpp/max_flatness_storage", max_flatness_storage_, 1000);
-        node_handle_.param("/patchworkpp/max_elevation_storage", max_elevation_storage_, 1000);
-        node_handle_.param("/patchworkpp/enable_RNR", enable_RNR_, true);
-        node_handle_.param("/patchworkpp/enable_RVPF", enable_RVPF_, true);
-        node_handle_.param("/patchworkpp/enable_TGR", enable_TGR_, true);
+        this->declare_parameter<double>("patchworkpp.sensor_height", 1.723);
+        this->declare_parameter<int>("patchworkpp.num_iter", 3);
+        this->declare_parameter<int>("patchworkpp.num_lpr", 20);
+        this->declare_parameter<int>("patchworkpp.num_min_pts", 10);
+        this->declare_parameter<double>("patchworkpp.th_seeds", 0.4);
+        this->declare_parameter<double>("patchworkpp.th_dist", 0.3);
+        this->declare_parameter<double>("patchworkpp.th_seeds_v", 0.4);
+        this->declare_parameter<double>("patchworkpp.th_dist_v", 0.3);
+        this->declare_parameter<double>("patchworkpp.max_r", 80.0);
+        this->declare_parameter<double>("patchworkpp.min_r", 2.7);
+        this->declare_parameter<double>("patchworkpp.uprightness_thr", 0.5);
+        this->declare_parameter<double>("patchworkpp.adaptive_seed_selection_margin", -1.1);
+        this->declare_parameter<double>("patchworkpp.RNR_ver_angle_thr", -15.0);
+        this->declare_parameter<double>("patchworkpp.RNR_intensity_thr", 0.2);
+        this->declare_parameter<int>("patchworkpp.max_flatness_storage", 1000);
+        this->declare_parameter<int>("patchworkpp.max_elevation_storage", 1000);
+        this->declare_parameter<bool>("patchworkpp.enable_RNR", true);
+        this->declare_parameter<bool>("patchworkpp.enable_RVPF", true);
+        this->declare_parameter<bool>("patchworkpp.enable_TGR", true);
 
-        ROS_INFO("Sensor Height: %f", sensor_height_);
-        ROS_INFO("Num of Iteration: %d", num_iter_);
-        ROS_INFO("Num of LPR: %d", num_lpr_);
-        ROS_INFO("Num of min. points: %d", num_min_pts_);
-        ROS_INFO("Seeds Threshold: %f", th_seeds_);
-        ROS_INFO("Distance Threshold: %f", th_dist_);
-        ROS_INFO("Max. range:: %f", max_range_);
-        ROS_INFO("Min. range:: %f", min_range_);
-        ROS_INFO("Normal vector threshold: %f", uprightness_thr_);
-        ROS_INFO("adaptive_seed_selection_margin: %f", adaptive_seed_selection_margin_);
+        this->get_parameter_or("patchworkpp.sensor_height", sensor_height_, 1.723);
+        this->get_parameter_or("patchworkpp.num_iter", num_iter_, 3);
+        this->get_parameter_or("patchworkpp.num_lpr", num_lpr_, 20);
+        this->get_parameter_or("patchworkpp.num_min_pts", num_min_pts_, 10);
+        this->get_parameter_or("patchworkpp.th_seeds", th_seeds_, 0.4);
+        this->get_parameter_or("patchworkpp.th_dist", th_dist_, 0.3);
+        this->get_parameter_or("patchworkpp.th_seeds_v", th_seeds_v_, 0.4);
+        this->get_parameter_or("patchworkpp.th_dist_v", th_dist_v_, 0.3);
+        this->get_parameter_or("patchworkpp.max_r", max_range_, 80.0);
+        this->get_parameter_or("patchworkpp.min_r", min_range_, 2.7);
+        this->get_parameter_or("patchworkpp.uprightness_thr", uprightness_thr_, 0.5);
+        this->get_parameter_or("patchworkpp.adaptive_seed_selection_margin", adaptive_seed_selection_margin_, -1.1);
+        this->get_parameter_or("patchworkpp.RNR_ver_angle_thr", RNR_ver_angle_thr_, -15.0);
+        this->get_parameter_or("patchworkpp.RNR_intensity_thr", RNR_intensity_thr_, 0.2);
+        this->get_parameter_or("patchworkpp.max_flatness_storage", max_flatness_storage_, 1000);
+        this->get_parameter_or("patchworkpp.max_elevation_storage", max_elevation_storage_, 1000);
+        this->get_parameter_or("patchworkpp.enable_RNR", enable_RNR_, true);
+        this->get_parameter_or("patchworkpp.enable_RVPF", enable_RVPF_, true);
+        this->get_parameter_or("patchworkpp.enable_TGR", enable_TGR_, true);
+
+        std::cerr << "Sensor Height: " << sensor_height_ << std::endl;
+        std::cerr << "Num of Iteration: " << num_iter_ << std::endl;
+        std::cerr << "Num of LPR: " << num_lpr_ << std::endl;
+        std::cerr << "Num of min. points: " << num_min_pts_ << std::endl;
+        std::cerr << "Seeds Threshold: " << th_seeds_ << std::endl;
+        std::cerr << "Distance Threshold: " << th_dist_ << std::endl;
+        std::cerr << "Max. range:: " << max_range_ << std::endl;
+        std::cerr << "Min. range:: " << min_range_ << std::endl;
+        std::cerr << "Normal vector threshold: " << uprightness_thr_ << std::endl;
+        std::cerr << "adaptive_seed_selection_margin: " << adaptive_seed_selection_margin_ << std::endl;
+
 
         // CZM denotes 'Concentric Zone Model'. Please refer to our paper
-        node_handle_.getParam("/patchworkpp/czm/num_zones", num_zones_);
-        node_handle_.getParam("/patchworkpp/czm/num_sectors_each_zone", num_sectors_each_zone_);
-        node_handle_.getParam("/patchworkpp/czm/mum_rings_each_zone", num_rings_each_zone_);
-        node_handle_.getParam("/patchworkpp/czm/elevation_thresholds", elevation_thr_);
-        node_handle_.getParam("/patchworkpp/czm/flatness_thresholds", flatness_thr_);
+        // node_handle_.getParam("/patchworkpp/czm/num_zones", num_zones_);
+        // node_handle_.getParam("/patchworkpp/czm/num_sectors_each_zone", num_sectors_each_zone_);
+        // node_handle_.getParam("/patchworkpp/czm/mum_rings_each_zone", num_rings_each_zone_);
+        // node_handle_.getParam("/patchworkpp/czm/elevation_thresholds", elevation_thr_);
+        // node_handle_.getParam("/patchworkpp/czm/flatness_thresholds", flatness_thr_);
 
-        ROS_INFO("Num. zones: %d", num_zones_);
+        this->declare_parameter<int>("patchworkpp.czm.num_zones", 4);
+        this->declare_parameter<vector<int64_t>>("patchworkpp.czm.num_sectors_each_zone", {8, 8, 8, 8});
+        this->declare_parameter<vector<int64_t>>("patchworkpp.czm.num_rings_each_zone", {3, 3, 3, 3});
+        this->declare_parameter<vector<double>>("patchworkpp.czm.elevation_thresholds", {0.1, 0.1, 0.1, 0.1});
+        this->declare_parameter<vector<double>>("patchworkpp.czm.flatness_thresholds", {0.1, 0.1, 0.1, 0.1});
+
+        this->get_parameter_or("patchworkpp.czm.num_zones", num_zones_, 4);
+        this->get_parameter_or("patchworkpp.czm.num_sectors_each_zone", num_sectors_each_zone_, {8, 8, 8, 8});
+        this->get_parameter_or("patchworkpp.czm.num_rings_each_zone", num_rings_each_zone_, {3, 3, 3, 3});
+        this->get_parameter_or("patchworkpp.czm.elevation_thresholds", elevation_thr_, {0.1, 0.1, 0.1, 0.1});
+        this->get_parameter_or("patchworkpp.czm.flatness_thresholds", flatness_thr_, {0.1, 0.1, 0.1, 0.1});
+
+        std::cerr << "Num. zones: " << num_zones_ << std::endl;
 
         if (num_zones_ != 4 || num_sectors_each_zone_.size() != num_rings_each_zone_.size()) {
             throw invalid_argument("Some parameters are wrong! Check the num_zones and num_rings/sectors_each_zone");
@@ -146,23 +183,31 @@ public:
                  flatness_thr_[3]).str() << endl;
         num_rings_of_interest_ = elevation_thr_.size();
 
-        node_handle_.param("/patchworkpp/visualize", visualize_, true);
+        // node_handle_.param("/patchworkpp/visualize", visualize_, true);
+        this->declare_parameter<bool>("patchworkpp.visualize", true);
+        this->get_parameter_or("patchworkpp.visualize", visualize_, true);
 
         int num_polygons = std::inner_product(num_rings_each_zone_.begin(), num_rings_each_zone_.end(), num_sectors_each_zone_.begin(), 0);
-        poly_list_.header.frame_id = "map";
-        poly_list_.polygons.reserve(num_polygons);
+        // poly_list_.header.frame_id = "map";
+        // poly_list_.polygons.reserve(num_polygons);
 
         revert_pc_.reserve(NUM_HEURISTIC_MAX_PTS_IN_PATCH);
         ground_pc_.reserve(NUM_HEURISTIC_MAX_PTS_IN_PATCH);
         regionwise_ground_.reserve(NUM_HEURISTIC_MAX_PTS_IN_PATCH);
         regionwise_nonground_.reserve(NUM_HEURISTIC_MAX_PTS_IN_PATCH);
 
-        PlaneViz        = node_handle_.advertise<jsk_recognition_msgs::PolygonArray>("/patchworkpp/plane", 100, true);
-        pub_revert_pc   = node_handle_.advertise<sensor_msgs::PointCloud2>("/patchworkpp/revert_pc", 100, true);
-        pub_reject_pc   = node_handle_.advertise<sensor_msgs::PointCloud2>("/patchworkpp/reject_pc", 100, true);
-        pub_normal      = node_handle_.advertise<sensor_msgs::PointCloud2>("/patchworkpp/normals", 100, true);
-        pub_noise       = node_handle_.advertise<sensor_msgs::PointCloud2>("/patchworkpp/noise", 100, true);
-        pub_vertical    = node_handle_.advertise<sensor_msgs::PointCloud2>("/patchworkpp/vertical", 100, true);
+        // PlaneViz        = node_handle_.advertise<jsk_recognition_msgs::PolygonArray>("/patchworkpp/plane", 100, true);
+        // pub_revert_pc   = node_handle_.advertise<sensor_msgs::msg::PointCloud2>("/patchworkpp/revert_pc", 100, true);
+        // pub_reject_pc   = node_handle_.advertise<sensor_msgs::msg::PointCloud2>("/patchworkpp/reject_pc", 100, true);
+        // pub_normal      = node_handle_.advertise<sensor_msgs::msg::PointCloud2>("/patchworkpp/normals", 100, true);
+        // pub_noise       = node_handle_.advertise<sensor_msgs::msg::PointCloud2>("/patchworkpp/noise", 100, true);
+        // pub_vertical    = node_handle_.advertise<sensor_msgs::msg::PointCloud2>("/patchworkpp/vertical", 100, true);
+
+        pub_revert_pc = this->create_publisher<sensor_msgs::msg::PointCloud2>("patchworkpp/revert_pc", 100);
+        pub_reject_pc = this->create_publisher<sensor_msgs::msg::PointCloud2>("patchworkpp/reject_pc", 100);
+        pub_normal = this->create_publisher<sensor_msgs::msg::PointCloud2>("patchworkpp/normals", 100);
+        pub_noise = this->create_publisher<sensor_msgs::msg::PointCloud2>("patchworkpp/noise", 100);
+        pub_vertical = this->create_publisher<sensor_msgs::msg::PointCloud2>("patchworkpp/vertical", 100);
 
         min_range_z2_ = (7 * min_range_ + max_range_) / 8.0;
         min_range_z3_ = (3 * min_range_ + max_range_) / 4.0;
@@ -193,7 +238,7 @@ private:
 
     // Every private member variable is written with the undescore("_") in its end.
 
-    ros::NodeHandle node_handle_;
+    // ros::NodeHandle node_handle_;
 
     std::recursive_mutex mutex_;
 
@@ -238,8 +283,10 @@ private:
     // For visualization
     bool visualize_;
 
-    vector<int> num_sectors_each_zone_;
-    vector<int> num_rings_each_zone_;
+
+    //  Bug: 'int' not work : https://github.com/ros2/rclcpp/issues/1585
+    vector<int64_t> num_sectors_each_zone_;
+    vector<int64_t> num_rings_each_zone_;
 
     vector<double> sector_sizes_;
     vector<double> ring_sizes_;
@@ -249,9 +296,10 @@ private:
 
     vector<Zone> ConcentricZoneModel_;
 
-    jsk_recognition_msgs::PolygonArray poly_list_;
+    // jsk_recognition_msgs::PolygonArray poly_list_;
 
-    ros::Publisher PlaneViz, pub_revert_pc, pub_reject_pc, pub_normal, pub_noise, pub_vertical;
+    // ros::Publisher PlaneViz, pub_revert_pc, pub_reject_pc, pub_normal, pub_noise, pub_vertical;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pub_revert_pc, pub_reject_pc, pub_normal, pub_noise, pub_vertical;
     pcl::PointCloud<PointT> revert_pc_, reject_pc_, noise_pc_, vertical_pc_;
     pcl::PointCloud<PointT> ground_pc_;
 
@@ -299,14 +347,14 @@ private:
     /***
      * For visulization of Ground Likelihood Estimation
      */
-    geometry_msgs::PolygonStamped set_polygons(int zone_idx, int r_idx, int theta_idx, int num_split);
+    // geometry_msgs::PolygonStamped set_polygons(int zone_idx, int r_idx, int theta_idx, int num_split);
 
-    void set_ground_likelihood_estimation_status(
-            const int zone_idx, const int ring_idx,
-            const int concentric_idx,
-            const double z_vec,
-            const double z_elevation,
-            const double ground_flatness);
+    // void set_ground_likelihood_estimation_status(
+    //         const int zone_idx, const int ring_idx,
+    //         const int concentric_idx,
+    //         const double z_vec,
+    //         const double z_elevation,
+    //         const double ground_flatness);
 
 };
 
@@ -473,33 +521,19 @@ void PatchWorkpp<PointT>::estimate_ground(
     
     unique_lock<recursive_mutex> lock(mutex_);
 
-    poly_list_.header.stamp = ros::Time::now();
-    if (!poly_list_.polygons.empty()) poly_list_.polygons.clear();
-    if (!poly_list_.likelihood.empty()) poly_list_.likelihood.clear();
-
     static double start, t0, t1, t2, end;
 
-    double pca_time_ = 0.0;
-    double t_revert = 0.0;
-    double t_total_ground = 0.0;
-    double t_total_estimate = 0.0;
 
-    start = ros::Time::now().toSec();
-    
     cloud_ground.clear();
     cloud_nonground.clear();
 
     // 1. Reflected Noise Removal (RNR)
     if (enable_RNR_) reflected_noise_removal(cloud_in, cloud_nonground);
 
-    t1 = ros::Time::now().toSec();
-
     // 2. Concentric Zone Model (CZM)
     flush_patches(ConcentricZoneModel_);
     pc2czm(cloud_in, ConcentricZoneModel_);
 
-    t2 = ros::Time::now().toSec();
-    
     int concentric_idx = 0;
 
     double t_sort = 0;
@@ -521,21 +555,14 @@ void PatchWorkpp<PointT>::estimate_ground(
                 }
 
                 // --------- region-wise sorting (faster than global sorting method) ---------------- //
-                double t_sort_0 = ros::Time::now().toSec();
+                
                 
                 sort(zone[ring_idx][sector_idx].points.begin(), zone[ring_idx][sector_idx].points.end(), point_z_cmp<PointT>);
                 
-                double t_sort_1 = ros::Time::now().toSec();
-                t_sort += (t_sort_1 - t_sort_0);
                 // ---------------------------------------------------------------------------------- //
 
-                double t_tmp0 = ros::Time::now().toSec();
                 extract_piecewiseground(zone_idx, zone[ring_idx][sector_idx], regionwise_ground_, regionwise_nonground_);
                 
-                double t_tmp1 = ros::Time::now().toSec();
-                t_total_ground += t_tmp1 - t_tmp0;
-                pca_time_ += t_tmp1 - t_tmp0;
-
                 // Status of each patch
                 // used in checking uprightness, elevation, and flatness, respectively
                 const double ground_uprightness = normal_(2);
@@ -546,23 +573,8 @@ void PatchWorkpp<PointT>::estimate_ground(
                 double heading = 0.0;
                 for(int i=0; i<3; i++) heading += pc_mean_(i,0)*normal_(i);
 
-                if (visualize_) {
-                    auto polygons = set_polygons(zone_idx, ring_idx, sector_idx, 3);
-                    polygons.header = poly_list_.header;
-                    poly_list_.polygons.push_back(polygons);
-                    set_ground_likelihood_estimation_status(zone_idx, ring_idx, concentric_idx, ground_uprightness, ground_elevation, ground_flatness);
-
-                    pcl::PointXYZINormal tmp_p;
-                    tmp_p.x = pc_mean_(0,0);
-                    tmp_p.y = pc_mean_(1,0);
-                    tmp_p.z = pc_mean_(2,0);
-                    tmp_p.normal_x = normal_(0);
-                    tmp_p.normal_y = normal_(1);
-                    tmp_p.normal_z = normal_(2);
-                    normals_.points.emplace_back(tmp_p);
-                }
-
-                double t_tmp2 = ros::Time::now().toSec();
+                visualize_ = false;
+            
 
                 /*  
                     About 'is_heading_outside' condidition, heading should be smaller than 0 theoretically.
@@ -617,12 +629,7 @@ void PatchWorkpp<PointT>::estimate_ground(
                 }
                 // Every regionwise_nonground is considered nonground.
                 cloud_nonground += regionwise_nonground_;
-
-                double t_tmp3 = ros::Time::now().toSec();
-                t_total_estimate += t_tmp3 - t_tmp2;
             }
-
-            double t_bef_revert = ros::Time::now().toSec();
 
             if (!candidates.empty())
             {
@@ -642,63 +649,14 @@ void PatchWorkpp<PointT>::estimate_ground(
                 ringwise_flatness.clear();
             }
 
-            double t_aft_revert = ros::Time::now().toSec();
-
-            t_revert += t_aft_revert - t_bef_revert;
-
             concentric_idx++;
         }
     }    
 
-    double t_update = ros::Time::now().toSec();
-
     update_elevation_thr();
     update_flatness_thr();
     
-    end = ros::Time::now().toSec();
-    time_taken = end - start;
-
-    // cout << "Time taken : " << time_taken << endl;
-    // cout << "Time taken to sort: " << t_sort << endl;
-    // cout << "Time taken to pca : " << pca_time_ << endl;
-    // cout << "Time taken to estimate: " << t_total_estimate << endl;
-    // cout << "Time taken to Revert: " <<  t_revert << endl;
-    // cout << "Time taken to update : " << end - t_update << endl;
-
-    if (visualize_)
-    {
-        sensor_msgs::PointCloud2 cloud_ROS;
-        pcl::toROSMsg(revert_pc_, cloud_ROS);
-        cloud_ROS.header.stamp = ros::Time::now();
-        cloud_ROS.header.frame_id = "map";
-        pub_revert_pc.publish(cloud_ROS);
-
-        pcl::toROSMsg(reject_pc_, cloud_ROS);
-        cloud_ROS.header.stamp = ros::Time::now();
-        cloud_ROS.header.frame_id = "map";
-        pub_reject_pc.publish(cloud_ROS);
-
-        pcl::toROSMsg(normals_, cloud_ROS);
-        cloud_ROS.header.stamp = ros::Time::now();
-        cloud_ROS.header.frame_id = "map";
-        pub_normal.publish(cloud_ROS);
-
-        pcl::toROSMsg(noise_pc_, cloud_ROS);
-        cloud_ROS.header.stamp = ros::Time::now();
-        cloud_ROS.header.frame_id = "map";
-        pub_noise.publish(cloud_ROS);
-
-        pcl::toROSMsg(vertical_pc_, cloud_ROS);
-        cloud_ROS.header.stamp = ros::Time::now();
-        cloud_ROS.header.frame_id = "map";
-        pub_vertical.publish(cloud_ROS);
-    }
-
-    if(visualize_)
-    {
-        PlaneViz.publish(poly_list_);
-    }
-    
+  
     revert_pc_.clear();
     reject_pc_.clear();
     normals_.clear();
@@ -925,79 +883,6 @@ void PatchWorkpp<PointT>::extract_piecewiseground(
     }
 }
 
-template<typename PointT> inline
-geometry_msgs::PolygonStamped PatchWorkpp<PointT>::set_polygons(int zone_idx, int r_idx, int theta_idx, int num_split) {
-    geometry_msgs::PolygonStamped polygons;
-    // Set point of polygon. Start from RL and ccw
-    geometry_msgs::Point32 point;
-
-    // RL
-    double zone_min_range = min_ranges_[zone_idx];
-    double r_len = r_idx * ring_sizes_[zone_idx] + zone_min_range;
-    double angle = theta_idx * sector_sizes_[zone_idx];
-
-    point.x = r_len * cos(angle);
-    point.y = r_len * sin(angle);
-    point.z = MARKER_Z_VALUE;
-    polygons.polygon.points.push_back(point);
-    // RU
-    r_len = r_len + ring_sizes_[zone_idx];
-    point.x = r_len * cos(angle);
-    point.y = r_len * sin(angle);
-    point.z = MARKER_Z_VALUE;
-    polygons.polygon.points.push_back(point);
-
-    // RU -> LU
-    for (int idx = 1; idx <= num_split; ++idx) {
-        angle = angle + sector_sizes_[zone_idx] / num_split;
-        point.x = r_len * cos(angle);
-        point.y = r_len * sin(angle);
-        point.z = MARKER_Z_VALUE;
-        polygons.polygon.points.push_back(point);
-    }
-
-    r_len = r_len - ring_sizes_[zone_idx];
-    point.x = r_len * cos(angle);
-    point.y = r_len * sin(angle);
-    point.z = MARKER_Z_VALUE;
-    polygons.polygon.points.push_back(point);
-
-    for (int idx = 1; idx < num_split; ++idx) {
-        angle = angle - sector_sizes_[zone_idx] / num_split;
-        point.x = r_len * cos(angle);
-        point.y = r_len * sin(angle);
-        point.z = MARKER_Z_VALUE;
-        polygons.polygon.points.push_back(point);
-    }
-
-    return polygons;
-}
-
-template<typename PointT> inline
-void PatchWorkpp<PointT>::set_ground_likelihood_estimation_status(
-        const int zone_idx, const int ring_idx,
-        const int concentric_idx,
-        const double z_vec,
-        const double z_elevation,
-        const double ground_flatness) {
-    if (z_vec > uprightness_thr_) { //orthogonal
-        if (concentric_idx < num_rings_of_interest_) {
-            if (z_elevation > elevation_thr_[concentric_idx]) {
-                if (flatness_thr_[concentric_idx] > ground_flatness) {
-                    poly_list_.likelihood.push_back(FLAT_ENOUGH);
-                } else {
-                    poly_list_.likelihood.push_back(TOO_HIGH_ELEVATION);
-                }
-            } else {
-                poly_list_.likelihood.push_back(UPRIGHT_ENOUGH);
-            }
-        } else {
-            poly_list_.likelihood.push_back(UPRIGHT_ENOUGH);
-        }
-    } else { // tilted
-        poly_list_.likelihood.push_back(TOO_TILTED);
-    }
-}
 
 template<typename PointT> inline
 void PatchWorkpp<PointT>::calc_mean_stdev(std::vector<double> vec, double &mean, double &stdev)
@@ -1045,8 +930,8 @@ void PatchWorkpp<PointT>::pc2czm(const pcl::PointCloud<PointT> &src, std::vector
             else if ( r < min_ranges_[3] ) zone_idx = 2;
             else zone_idx = 3;
             
-            int ring_idx = min(static_cast<int>(((r - min_ranges_[zone_idx]) / ring_sizes_[zone_idx])), num_rings_each_zone_[zone_idx] - 1);
-            int sector_idx = min(static_cast<int>((theta / sector_sizes_[zone_idx])), num_sectors_each_zone_[zone_idx] - 1);
+            int64_t ring_idx = min(static_cast<int64_t>(((r - min_ranges_[zone_idx]) / ring_sizes_[zone_idx])), num_rings_each_zone_[zone_idx] - 1);
+            int64_t sector_idx = min(static_cast<int64_t>((theta / sector_sizes_[zone_idx])), num_sectors_each_zone_[zone_idx] - 1);
             
             czm[zone_idx][ring_idx][sector_idx].points.emplace_back(pt);
         }

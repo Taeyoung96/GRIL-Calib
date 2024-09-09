@@ -7,11 +7,9 @@
 #include <map>
 #include <iostream>
 
-#include <tf/tf.h>
 
 #include <pcl/common/common.h>
 #include <pcl/common/transforms.h>
-#include <pcl_ros/point_cloud.h>
 #include <pcl/filters/filter.h>
 #include <pcl/point_types.h>
 #include <pcl/common/centroid.h>

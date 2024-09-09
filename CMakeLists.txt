@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.3)
+cmake_minimum_required(VERSION 3.5)
 project(gril_calib)
 
 SET(CMAKE_BUILD_TYPE "Release")
@@ -42,19 +42,20 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}   ${OpenMP_C_FLAGS}")
 find_package(PythonLibs REQUIRED)
 find_path(MATPLOTLIB_CPP_INCLUDE_DIRS "matplotlibcpp.h")
 
-find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  nav_msgs
-  sensor_msgs
-  roscpp
-  rospy
-  std_msgs
-  pcl_ros
-  tf
-  livox_ros_driver
-  message_generation
-  eigen_conversions
-)
+# ROS dependencies
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(std_srvs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(pcl_ros REQUIRED)
+find_package(pcl_conversions REQUIRED)
+find_package(livox_ros_driver2 REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 find_package(Eigen3 REQUIRED)
 find_package(PCL 1.8 REQUIRED)
@@ -63,38 +64,69 @@ find_package(Ceres REQUIRED)
 message(Eigen: ${EIGEN3_INCLUDE_DIR})
 
 include_directories(
-     ../../devel/include
-	${catkin_INCLUDE_DIRS} 
+  include
   ${EIGEN3_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
   ${PYTHON_INCLUDE_DIRS}
-  include)
-
-add_message_files(
-  FILES
-  Pose6D.msg
-  States.msg
 )
 
-generate_messages(
- DEPENDENCIES
- geometry_msgs
+set(msg_files
+  "msg/Pose6D.msg"
 )
 
-catkin_package(
-  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs message_runtime
-  DEPENDS EIGEN3 PCL
-  INCLUDE_DIRS
+rosidl_generate_interfaces(${PROJECT_NAME}
+  ${msg_files}
+)
+ament_export_dependencies(rosidl_default_runtime)
+  
+
+add_executable(gril_calib_exec
+  src/laserMapping.cpp
+  include/ikd-Tree/ikd_Tree.cpp
+  include/Gril_Calib/Gril_Calib.cpp
+  src/preprocess.cpp
+  include/Fusion/FusionAhrs.c
+  include/Fusion/FusionCompass.c
+  include/Fusion/FusionOffset.c
 )
 
-add_executable(gril_calib
-        src/laserMapping.cpp
-        include/ikd-Tree/ikd_Tree.cpp
-        include/Gril_Calib/Gril_Calib.cpp
-        src/preprocess.cpp
-        include/Fusion/FusionAhrs.c
-        include/Fusion/FusionCompass.c
-        include/Fusion/FusionOffset.c)
+ament_target_dependencies(gril_calib_exec
+  rclcpp
+  rclcpp_components
+  geometry_msgs
+  nav_msgs
+  sensor_msgs
+  std_msgs
+  std_srvs
+  visualization_msgs
+  pcl_conversions
+  livox_ros_driver2
+  tf2_ros
+  Eigen3
+  PCL
+  Ceres
+)
 
-target_link_libraries(gril_calib ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${PYTHON_LIBRARIES} ${CERES_LIBRARIES})
-target_include_directories(gril_calib PRIVATE ${PYTHON_INCLUDE_DIRS})
+target_link_libraries(gril_calib_exec
+  ${PCL_LIBRARIES}
+  ${PYTHON_LIBRARIES}
+  ${CERES_LIBRARIES}
+)
+
+target_include_directories(gril_calib_exec PRIVATE
+  ${PYTHON_INCLUDE_DIRS}
+)
+
+rosidl_target_interfaces(gril_calib_exec ${PROJECT_NAME} "rosidl_typesupport_cpp")
+
+# Install targets
+install(TARGETS gril_calib_exec
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY config launch rviz_cfg
+  DESTINATION share/${PROJECT_NAME}
+)
+
+ament_package()

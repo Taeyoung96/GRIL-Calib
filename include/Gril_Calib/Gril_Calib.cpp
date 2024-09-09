@@ -78,7 +78,7 @@ void Gril_Calib::fout_check_lidar() {
 }
 
 
-void Gril_Calib::push_ALL_IMU_CalibState(const sensor_msgs::Imu::ConstPtr &msg, const double &mean_acc_norm) {
+void Gril_Calib::push_ALL_IMU_CalibState(const sensor_msgs::msg::Imu::SharedPtr &msg, const double &mean_acc_norm) {
     CalibState IMUstate;
     double invert = -1.0;
     IMUstate.ang_vel = V3D(msg->angular_velocity.x, msg->angular_velocity.y, msg->angular_velocity.z);
@@ -86,7 +86,7 @@ void Gril_Calib::push_ALL_IMU_CalibState(const sensor_msgs::Imu::ConstPtr &msg, 
             V3D(msg->linear_acceleration.x, msg->linear_acceleration.y, msg->linear_acceleration.z) / mean_acc_norm *
             G_m_s2;
     
-    IMUstate.timeStamp = msg->header.stamp.toSec();
+    IMUstate.timeStamp = get_time_sec(msg->header.stamp);
     IMU_state_group_ALL.push_back(IMUstate);
 }
 
@@ -252,7 +252,7 @@ void Gril_Calib::IMU_time_compensate(const double &lag_time, const bool &is_disc
         Lidar_state_group.pop_front();  
 
     while (Lidar_state_group.front().timeStamp > IMU_state_group[1].timeStamp)
-        IMU_state_group.pop_front();    
+        IMU_state_group.pop_front();   
 
     // align the size of two sequences
     while (IMU_state_group.size() > Lidar_state_group.size())
@@ -260,7 +260,6 @@ void Gril_Calib::IMU_time_compensate(const double &lag_time, const bool &is_disc
     while (IMU_state_group.size() < Lidar_state_group.size())
         Lidar_state_group.pop_back();
 }
-
 
 void Gril_Calib::cut_sequence_tail() {
     for (int i = 0; i < 20; ++i) {
@@ -349,7 +348,7 @@ void Gril_Calib::Butter_filt(const deque<CalibState> &signal_in, deque<CalibStat
 // zero phase low-pass filter //
 void Gril_Calib::zero_phase_filt(const deque<CalibState> &signal_in, deque<CalibState> &signal_out) {
     deque<CalibState> sig_out1;
-    Butter_filt(signal_in, sig_out1);   // signal_in에 대해 Butterworth filter를 적용한 결과를 sig_out1에 저장
+    Butter_filt(signal_in, sig_out1);   
 
     deque<CalibState> sig_rev(sig_out1);
     reverse(sig_rev.begin(), sig_rev.end()); //Reverse the elements
@@ -357,7 +356,6 @@ void Gril_Calib::zero_phase_filt(const deque<CalibState> &signal_in, deque<Calib
     Butter_filt(sig_rev, signal_out);
     reverse(signal_out.begin(), signal_out.end()); //Reverse the elements
 }
-
 
 // To obtain a rough initial value of rotation matrix //
 void Gril_Calib::solve_Rotation_only() {
@@ -387,9 +385,9 @@ void Gril_Calib::solve_Rotation_only() {
     Eigen::Quaterniond q_LI(R_LI_quat[0], R_LI_quat[1], R_LI_quat[2], R_LI_quat[3]);
     Rot_Lidar_wrt_IMU = q_LI.matrix();  // LiDAR angulr velocity in IMU frame (from LiDAR to IMU)
 
+    // cout << "Quaternion based Initial Rotation Matrix (from LiDAR to IMU)" << endl;
+    // cout << Rot_Lidar_wrt_IMU << endl; 
 }
-
-
 
 // Proposed algorithm (Rotation + Translation)
 void Gril_Calib::solve_Rot_Trans_calib(double &timediff_imu_wrt_lidar, const double &imu_sensor_height) {
@@ -416,6 +414,8 @@ void Gril_Calib::solve_Rot_Trans_calib(double &timediff_imu_wrt_lidar, const dou
     bias_aL[0] = 0;
     bias_aL[1] = 0;
     bias_aL[2] = 0;
+
+    
 
     double time_lag2 = 0;           // Second time lag (IMU wtr Lidar)
 
@@ -698,7 +698,7 @@ void Gril_Calib::LI_Calibration(int &orig_odom_freq, int &cut_frame_num, double 
     deque<CalibState> IMU_after_zero_phase;
     deque<CalibState> Lidar_after_zero_phase;
     zero_phase_filt(get_IMU_state(), IMU_after_zero_phase); // zero phase low-pass filter
-    normalize_acc(IMU_after_zero_phase);    
+    normalize_acc(IMU_after_zero_phase);   
     zero_phase_filt(get_Lidar_state(), Lidar_after_zero_phase);
     set_IMU_state(IMU_after_zero_phase);
     set_Lidar_state(Lidar_after_zero_phase);
@@ -715,11 +715,10 @@ void Gril_Calib::LI_Calibration(int &orig_odom_freq, int &cut_frame_num, double 
     zero_phase_filt(get_IMU_state(), IMU_after_2nd_zero_phase);
     zero_phase_filt(get_Lidar_state(), Lidar_after_2nd_zero_phase);
 
-    
+    // IMU의 angular acc, LiDAR의 angular acc, linear acc를 구하고 IMU_state_group, Lidar_state_group에 저장한다.
     set_states_2nd_filter(IMU_after_2nd_zero_phase, Lidar_after_2nd_zero_phase);    
     fout_check_lidar(); // file output for visualizing lidar low pass filter
 
-   
     solve_Rotation_only();
     acc_interpolate();
     align_Group(IMU_state_group, Lidar_wrt_ground_group, IMU_wrt_ground_group,
