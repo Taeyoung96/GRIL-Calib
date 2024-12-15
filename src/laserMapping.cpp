@@ -1286,7 +1286,7 @@ int main(int argc, char **argv) {
                 R_inv(effect_feat_num+2) = ground_cov;
 
                 /* Ground plane residual */
-                V3D meas_gp_ = R_LG_ * state.rot_end * e3;
+                V3D meas_gp_ = R_LG_ * state.rot_end * normal_lidar;
                 V3D meas_gp_last = R_LG_ * state.pos_end;
 
                 double meas_gp_first_result = e1.transpose() * meas_gp_;
@@ -1295,7 +1295,7 @@ int main(int argc, char **argv) {
 
                 meas_vec(effect_feat_num) = meas_gp_first_result;
                 meas_vec(effect_feat_num+1) = meas_gp_second_result;
-                meas_vec(effect_feat_num+2) = meas_gp_last_result - 1,0;
+                meas_vec(effect_feat_num+2) = meas_gp_last_result - 1.0;
 
                 /* Kalman Gain */
                 MatrixXd K(DIM_STATE, residual_dim);
